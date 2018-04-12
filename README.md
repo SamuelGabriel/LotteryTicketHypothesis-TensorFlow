@@ -4,51 +4,51 @@ This is an implementation of the methods used in The Lottery Ticket Hypothesis: 
 
 ### Run an experiment with
 
-> python3 algorithm.py --resultdir {path to directory}
+`python3 algorithm.py --resultdir {path to directory}`
 
 #### Other options:
 
-> --iterative
+`--iterative`
 Defaults to true. Define if the iterative or the one shot method should be used to find lottery tickets.
 
-> --samplestart
+`--samplestart`
 Defaults to 0. With which sample index to start. Useful if you want to run all samples completely seperated for parallelization.
 
-> --samplesupremum
+`--samplesupremum`
 Defaults to 5. Like above. One above last Sample index to work on.
 
-> --reductionsteps
+`--reductionsteps`
 Defaults to 10. How often the weight matrices get pruned. How many times to prune to 64% of weights.
 
-> --trainingsteps
+`--trainingsteps`
 Defaults to 18000. How many steps to take during training. This number should be chosen such that one can assume gradient descent is converged.
 
 #### Example:
 
-> mkdir results
-> python3 algorithm.py --resultdir results --iterative false --samplestart 0 --samplesupremum 3
+`mkdir results`
+`python3 algorithm.py --resultdir results --iterative false --samplestart 0 --samplesupremum 3`
 
 This will make the directory *results*. And then safe the one shot results of samples 0 to 2 in *results*.
 
 ## How to plot the results:
 
 ### Plot with
-> python3 plot.py --resultdir {path to directory}
+`python3 plot.py --resultdir {path to directory}`
 
 #### Other options:
 
-> --samplestart
+`--samplestart`
 Defaults to 0. With which sample index to start.
 
-> --samplesupremum
+`--samplesupremum`
 Defaults to 5. Like above. One above last Sample index to work on.
 
-> --reductionsteps
+`--reductionsteps`
 Defaults to 10. How often the weight matrices get pruned. How many times to prune to 64% of weights.
 
 #### Example:
 
-> python3 plot.py --resultdir results
+`python3 plot.py --resultdir results`
 
 ## Results
 I have very similar results to what was published in the paper[1].
