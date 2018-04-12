@@ -67,3 +67,4 @@ In this graph I show test accuracy of pruned lottery tickets after number of tra
 
 ![Graph Example](ResultsIterative4Samples18000Iterations.png)
 
+[1] The Lottery Ticket Hypothesis: Training Pruned Neural Network by Jonathan Frankle and Michael Carbin 2018 arXiv:1803.03635
