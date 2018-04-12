@@ -25,9 +25,10 @@ Defaults to 18000. How many steps to take during training. This number should be
 
 #### Example:
 
-`mkdir results`
-
-`python3 algorithm.py --resultdir results --iterative false --samplestart 0 --samplesupremum 3`
+```
+mkdir results
+python3 algorithm.py --resultdir results --iterative false --samplestart 0 --samplesupremum 3
+```
 
 This will make the directory *results*. And then safe the one shot results of samples 0 to 2 in *results*.
 
