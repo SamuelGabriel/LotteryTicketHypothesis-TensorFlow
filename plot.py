@@ -19,7 +19,7 @@ parser.add_argument("--resultdir", type=str)
 parser.add_argument("--samplestart", type=int, default=0)
 parser.add_argument("--samplesupremum", type=int, default=5)
 parser.add_argument('--remainingcounts', type=str,
-                    default='[(share*784*300, share*300*100, share*100*10) ' +
+                    default='[(round(share*784*300), round(share*300*100), round(share*100*10)) ' +
                     'for share in ((.8**2)**i for i in range(1, 11))]')
 args = parser.parse_args()
 assert(args.resultdir is not None)

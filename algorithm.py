@@ -30,7 +30,7 @@ parser.add_argument('--trainingsteps', type=int, default=18000)
 parser.add_argument('--firstlayersize', type=int, default=300)
 parser.add_argument('--secondlayersize', type=int, default=100)
 parser.add_argument('--remainingcounts', type=str,
-                    default='[(share*784*300, share*300*100, share*100*10) ' +
+                    default='[(round(share*784*300), round(share*300*100), round(share*100*10)) ' +
                     'for share in ((.8**2)**i for i in range(1, 11))]')
 args = parser.parse_args()
 assert(args.resultdir is not None)
