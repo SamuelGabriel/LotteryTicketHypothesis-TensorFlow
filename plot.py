@@ -18,73 +18,45 @@ def str2bool(v):
 parser.add_argument("--resultdir", type=str)
 parser.add_argument("--samplestart", type=int, default=0)
 parser.add_argument("--samplesupremum", type=int, default=5)
-parser.add_argument('--reductionsteps', type=int, default=10)
+parser.add_argument('--remainingcounts', type=str,
+                    default='[(share*784*300, share*300*100, share*100*10) ' +
+                    'for share in ((.8**2)**i for i in range(1, 11))]')
 args = parser.parse_args()
 assert(args.resultdir is not None)
 
 START_SAMPLES_INDEX = args.samplestart
 SUPREMUM_SAMPLES_INDEX = args.samplesupremum
-NUM_REDUCE_STEPS = args.reducesteps
-JUMP_REDUCE_STEP = 3
-REDUCE_STEP_SIZE = 0.8 ** 2
 RESULTS_DIR = args.resultdir
+REMAINING_COUNTS = eval(args.remainingcounts)
 
 iterations = np.load(RESULTS_DIR + '/base_iterations_0.npy')
-max_base_accuracies = np.zeros(iterations.shape)
-min_base_accuracies = np.full(iterations.shape, np.inf)
-avg_base_accuracies = np.zeros(iterations.shape)
-for sample in range(START_SAMPLES_INDEX, SUPREMUM_SAMPLES_INDEX):
-    accuracies = np.load(
-        RESULTS_DIR + '/base_accuracies_{}.npy'.format(sample))
-    max_base_accuracies = np.maximum(accuracies, max_base_accuracies)
-    min_base_accuracies = np.minimum(accuracies, min_base_accuracies)
-    avg_base_accuracies += accuracies
-avg_base_accuracies = avg_base_accuracies/(sample+1)
-plus_err = max_base_accuracies - avg_base_accuracies
-minus_err = avg_base_accuracies - min_base_accuracies
-plt.errorbar(iterations, avg_base_accuracies,
-             yerr=np.stack([plus_err, minus_err], axis=0))
 
-for share_it in range(0, NUM_REDUCE_STEPS, JUMP_REDUCE_STEP):
+
+def plot_error(sample_accuracy_filenames):
     max_accuracies = np.zeros(iterations.shape)
     min_accuracies = np.full(iterations.shape, np.inf)
     avg_accuracies = np.zeros(iterations.shape)
-    for sample in range(START_SAMPLES_INDEX, SUPREMUM_SAMPLES_INDEX):
-        accuracies = np.load(
-            '{}/accuracies_sample_{}_restshare_step_{}.npy'
-            .format(RESULTS_DIR, sample, share_it)
-        )
+    for i, sample_file in enumerate(sample_accuracy_filenames):
+        accuracies = np.load(sample_file)
         max_accuracies = np.maximum(accuracies, max_accuracies)
         min_accuracies = np.minimum(accuracies, min_accuracies)
         avg_accuracies += accuracies
-    avg_accuracies = avg_accuracies/(sample+1)
+    avg_accuracies = avg_accuracies/(i+1)
     plus_err = max_accuracies - avg_accuracies
     minus_err = avg_accuracies - min_accuracies
     plt.errorbar(iterations, avg_accuracies,
                  yerr=np.stack([plus_err, minus_err], axis=0))
 
-for share_it in range(0, NUM_REDUCE_STEPS, JUMP_REDUCE_STEP):
-    max_accuracies = np.zeros(iterations.shape)
-    min_accuracies = np.full(iterations.shape, np.inf)
-    avg_accuracies = np.zeros(iterations.shape)
-    for control_ex in range(3):
-        for sample in range(START_SAMPLES_INDEX, SUPREMUM_SAMPLES_INDEX):
-            accuracies = np.load(
-                '{}/accuracies_sample_{}_control_{}_restshare_step_{}.npy'
-                .format(RESULTS_DIR, sample, control_ex, share_it)
-            )
-            max_accuracies = np.maximum(accuracies, max_accuracies)
-            min_accuracies = np.minimum(accuracies, min_accuracies)
-            avg_accuracies += accuracies
-    avg_accuracies = avg_accuracies/(sample + 1)/(control_ex + 1)
-    plus_err = max_accuracies - avg_accuracies
-    minus_err = avg_accuracies - min_accuracies
-    print('yo')
-    plt.errorbar(iterations, avg_accuracies,
-                 yerr=np.stack([plus_err, minus_err], axis=0))
 
-percent = ['{:0.2f}%'.format((REDUCE_STEP_SIZE ** (share_it)) * 100)
-           for share_it in range(1, NUM_REDUCE_STEPS + 1, JUMP_REDUCE_STEP)]
-plt.legend(['base']+percent+['control: ' +
-                             p for p in percent], loc='lower right')
+base_accuracies = [RESULTS_DIR + f'/base_accuracies_{sample}.npy'
+                   for sample in range(START_SAMPLES_INDEX,
+                                       SUPREMUM_SAMPLES_INDEX)]
+plot_error(base_accuracies)
+for remaining_count in REMAINING_COUNTS:
+    accuracies = [RESULTS_DIR +
+                  f'/accuracies_sample_{i}_restcounts_{remaining_count}.npy'
+                  for i in range(START_SAMPLES_INDEX, SUPREMUM_SAMPLES_INDEX)]
+    plot_error(accuracies)
+
+plt.legend(['base']+REMAINING_COUNTS, loc='lower right')
 plt.show()

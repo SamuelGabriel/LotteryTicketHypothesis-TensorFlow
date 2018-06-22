@@ -1,6 +1,10 @@
 one_shot_results
-results
+results*
 results_seq
 results_it
 MNIST_data
 .vscode
+results_only_layer_1
+results_only_first_two_layers
+.mypy_cache
+results_first_two_layers
