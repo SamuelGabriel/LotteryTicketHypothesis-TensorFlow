@@ -178,7 +178,7 @@ def evaluate_sample(sample_n):
     np.save('{}/base_iterations_{}.npy'.format(
         RESULT_PATH_PREFIX, sample_n), base_iterations)
 
-    W_after_train = [w.eval() for w in W]
+    W_after_train = [w.eval() for layer in W for w in layer]
 
     for counts in REMAINING_COUNTS:
         if ITERATIVE:
