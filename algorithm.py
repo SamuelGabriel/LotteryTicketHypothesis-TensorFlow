@@ -65,19 +65,14 @@ def bias_variable(shape):
 x = tf.placeholder(tf.float32, shape=[None, 784])
 y_ = tf.placeholder(tf.float32, shape=[None, 10])
 
-prune = []
-prune.append(
+prune = [
     [tf.placeholder(tf.float32, shape=[784, FIRST_LAYER_SIZE])] *
-    LAYER_REPETITIONS[0]
-)
-prune.append(
-    [tf.placeholder(tf.float32, 
+    LAYER_REPETITIONS[0],
+    [tf.placeholder(tf.float32,
                     shape=[FIRST_LAYER_SIZE,
-                           SECOND_LAYER_SIZE])]*LAYER_REPETITIONS[1]
-)
-prune.append(
+                           SECOND_LAYER_SIZE])]*LAYER_REPETITIONS[1],
     [tf.placeholder(tf.float32, shape=[SECOND_LAYER_SIZE, 10])]
-)
+]
 
 first_layers_per_second_layer = LAYER_REPETITIONS[0] // LAYER_REPETITIONS[1]
 
@@ -116,7 +111,8 @@ h_layer.append(next_h_layer)
 
 W.append([weight_variable([SECOND_LAYER_SIZE, 10])])
 b.append([bias_variable([10])])
-y = tf.matmul(tf.reduce_sum(h_layer[-1], axis=0), W[2][0] * prune[2][0]) + b[2][0]
+y = tf.matmul(tf.reduce_sum(h_layer[-1], axis=0),
+              W[2][0] * prune[2][0]) + b[2][0]
 
 cross_entropy = tf.reduce_mean(
     tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
