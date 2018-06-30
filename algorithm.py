@@ -26,8 +26,7 @@ parser.add_argument("--resultdir", type=str)
 parser.add_argument("--samplestart", type=int, default=0)
 parser.add_argument("--samplesupremum", type=int, default=5)
 parser.add_argument('--trainingsteps', type=int, default=18000)
-parser.add_argument('--firstlayersize', type=int, default=300)
-parser.add_argument('--secondlayersize', type=int, default=100)
+parser.add_argument('--layersizes', type=str, default='[300,100]')
 parser.add_argument('--layerrepetitions', type=str, default='[1,1]')
 parser.add_argument('--remainingcounts', type=str,
                     default='[((round(share*784*300),), (round(share*300*100),), (round(share*100*10),)) ' +
@@ -40,8 +39,7 @@ NUM_ITERATIONS = args.trainingsteps
 RESULT_PATH_PREFIX = args.resultdir
 SAMPLE_START = args.samplestart
 SAMPLE_SUPREMUM = args.samplesupremum
-FIRST_LAYER_SIZE = args.firstlayersize
-SECOND_LAYER_SIZE = args.secondlayersize
+LAYER_SIZES = eval(args.layersizes)
 REMAINING_COUNTS = eval(args.remainingcounts)
 LAYER_REPETITIONS = eval(args.layerrepetitions)
 
@@ -61,17 +59,29 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 
+def map_2d(list_of_lists, elem_function, unpack_elements=False):
+    return [[elem_function(*el) if unpack_elements else elem_function(el)
+             for el in line]
+            for line in list_of_lists]
+
+
+def zip_2d(*lists_of_lists):
+    return [[elements for elements in zip(*lines)]
+            for lines in zip(*lists_of_lists)
+            ]
+
+
 # Network definition
 x = tf.placeholder(tf.float32, shape=[None, 784])
 y_ = tf.placeholder(tf.float32, shape=[None, 10])
 
 prune = [
-    [tf.placeholder(tf.float32, shape=[784, FIRST_LAYER_SIZE])] *
+    [tf.placeholder(tf.float32, shape=[784, LAYER_SIZES[0]])] *
     LAYER_REPETITIONS[0],
     [tf.placeholder(tf.float32,
-                    shape=[FIRST_LAYER_SIZE,
-                           SECOND_LAYER_SIZE])]*LAYER_REPETITIONS[1],
-    [tf.placeholder(tf.float32, shape=[SECOND_LAYER_SIZE, 10])]
+                    shape=[LAYER_SIZES[0],
+                           LAYER_SIZES[1]])]*LAYER_REPETITIONS[1],
+    [tf.placeholder(tf.float32, shape=[LAYER_SIZES[1], 10])]
 ]
 
 first_layers_per_second_layer = LAYER_REPETITIONS[0] // LAYER_REPETITIONS[1]
@@ -81,10 +91,10 @@ b = []
 h_layer = []
 
 W.append(
-    [weight_variable([784, FIRST_LAYER_SIZE])]*LAYER_REPETITIONS[0]
+    [weight_variable([784, LAYER_SIZES[0]])]*LAYER_REPETITIONS[0]
 )
 b.append(
-    [bias_variable([FIRST_LAYER_SIZE])] * LAYER_REPETITIONS[0]
+    [bias_variable([LAYER_SIZES[0]])] * LAYER_REPETITIONS[0]
 )
 h_layer.append(
     [tf.nn.relu(tf.matmul(x, W[0][i] * prune[0][i]) + b[0][i])
@@ -92,11 +102,11 @@ h_layer.append(
 )
 
 W.append(
-    [weight_variable([FIRST_LAYER_SIZE, SECOND_LAYER_SIZE])] *
+    [weight_variable([LAYER_SIZES[0], LAYER_SIZES[1]])] *
     LAYER_REPETITIONS[1]
 )
 b.append(
-    [bias_variable([SECOND_LAYER_SIZE])] * LAYER_REPETITIONS[1]
+    [bias_variable([LAYER_SIZES[1]])] * LAYER_REPETITIONS[1]
 )
 next_h_layer = []
 for i in range(LAYER_REPETITIONS[1]):
@@ -109,7 +119,7 @@ for i in range(LAYER_REPETITIONS[1]):
         tf.matmul(sum_input, W[1][i] * prune[1][i]) + b[1][i]))
 h_layer.append(next_h_layer)
 
-W.append([weight_variable([SECOND_LAYER_SIZE, 10])])
+W.append([weight_variable([LAYER_SIZES[1], 10])])
 b.append([bias_variable([10])])
 y = tf.matmul(tf.reduce_sum(h_layer[-1], axis=0),
               W[2][0] * prune[2][0]) + b[2][0]
@@ -161,11 +171,13 @@ def evaluate_sample(sample_n):
     sess = tf.InteractiveSession()
     sess.run(tf.global_variables_initializer())
 
-    W_init = [[w.eval() for w in layer] for layer in W]
+    def evaluate(w):
+        return w.eval()
+    W_init = map_2d(W, evaluate)
 
-    p = [[np.ones([784, FIRST_LAYER_SIZE])]*LAYER_REPETITIONS[0],
-         [np.ones([FIRST_LAYER_SIZE, SECOND_LAYER_SIZE])]*LAYER_REPETITIONS[1],
-         [np.ones([SECOND_LAYER_SIZE, 10])]]
+    p = [[np.ones([784, LAYER_SIZES[0]])]*LAYER_REPETITIONS[0],
+         [np.ones([LAYER_SIZES[0], LAYER_SIZES[1]])]*LAYER_REPETITIONS[1],
+         [np.ones([LAYER_SIZES[1], 10])]]
 
     base_accuracies, base_iterations = train(p)
 
@@ -174,22 +186,22 @@ def evaluate_sample(sample_n):
     np.save('{}/base_iterations_{}.npy'.format(
         RESULT_PATH_PREFIX, sample_n), base_iterations)
 
-    W_after_train = [w.eval() for layer in W for w in layer]
+    W_after_train = map_2d(W, evaluate)
 
     for counts in REMAINING_COUNTS:
         if ITERATIVE:
-            p = [create_prune(w.eval()*pr, c)
-                 for layer in zip(W, p, counts)
-                 for w, pr, c in zip(*layer)]
+            p = map_2d(zip_2d(W, p, counts),
+                       lambda w, p_, c: create_prune(w.eval()*p_, c),
+                       unpack_elements=True)
         else:
-            p = [create_prune(w_after_train, c)
-                 for layer in zip(W_after_train, counts)
-                 for w_after_train, c in zip(*layer)]
+            p = map_2d(zip_2d(W_after_train, counts),
+                       lambda w, c: create_prune(w, c),
+                       unpack_elements=True)
 
         sess.run(tf.global_variables_initializer())
-        for layer in zip(W, W_init):
-            for w, w_init in zip(*layer):
-                sess.run(w.assign(w_init))
+        map_2d(zip_2d(W, W_init),
+               lambda w, w_init: sess.run(w.assign(w_init)),
+               unpack_elements=True)
 
         accuracies, iterations = train(p)
 

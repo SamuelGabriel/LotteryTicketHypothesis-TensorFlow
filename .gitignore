@@ -8,3 +8,4 @@ results_only_layer_1
 results_only_first_two_layers
 .mypy_cache
 results_first_two_layers
+venv
