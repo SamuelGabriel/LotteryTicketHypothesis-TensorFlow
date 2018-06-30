@@ -31,6 +31,8 @@ parser.add_argument('--layerrepetitions', type=str, default='[1,1]')
 parser.add_argument('--remainingcounts', type=str,
                     default='[((round(share*784*300),), (round(share*300*100),), (round(share*100*10),)) ' +
                     'for share in ((.8**2)**i for i in range(1, 11))]')
+# Results in [((150528,), (19200,), (640,)), ((96338,), (12288,), (410,)), ((61656,), (7864,), (262,)), ((39460,), (5033,), (168,)), ((25254,), (3221,), (107,)), ((16163,), (2062,), (69,)), ((10344,), (1319,), (44,)), ((6620,), (844,), (28,)), ((4237,), (540,), (18,)), ((2712,), (346,), (12,))]
+    
 args = parser.parse_args()
 assert(args.resultdir is not None)
 ITERATIVE = args.iterative
