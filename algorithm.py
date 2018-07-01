@@ -21,18 +21,17 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-parser.add_argument("--iterative", default=True, type=str2bool)
+parser.add_argument("--iterative", default=False, type=str2bool)
 parser.add_argument("--resultdir", type=str)
 parser.add_argument("--samplestart", type=int, default=0)
 parser.add_argument("--samplesupremum", type=int, default=5)
 parser.add_argument('--trainingsteps', type=int, default=18000)
 parser.add_argument('--layersizes', type=str, default='[300,100]')
-parser.add_argument('--layerrepetitions', type=str, default='[1,1]')
 parser.add_argument('--remainingcounts', type=str,
                     default='[((round(share*784*300),), (round(share*300*100),), (round(share*100*10),)) ' +
                     'for share in ((.8**2)**i for i in range(1, 11))]')
 # Results in [((150528,), (19200,), (640,)), ((96338,), (12288,), (410,)), ((61656,), (7864,), (262,)), ((39460,), (5033,), (168,)), ((25254,), (3221,), (107,)), ((16163,), (2062,), (69,)), ((10344,), (1319,), (44,)), ((6620,), (844,), (28,)), ((4237,), (540,), (18,)), ((2712,), (346,), (12,))]
-    
+
 args = parser.parse_args()
 assert(args.resultdir is not None)
 ITERATIVE = args.iterative
@@ -43,7 +42,7 @@ SAMPLE_START = args.samplestart
 SAMPLE_SUPREMUM = args.samplesupremum
 LAYER_SIZES = eval(args.layersizes)
 REMAINING_COUNTS = eval(args.remainingcounts)
-LAYER_REPETITIONS = eval(args.layerrepetitions)
+LAYER_REPETITIONS = [len(remainings) for remainings in REMAINING_COUNTS[0]][1:]
 
 print('Results written to {}'.format(RESULT_PATH_PREFIX))
 print('Iterative Run {}'.format(ITERATIVE))
@@ -82,8 +81,9 @@ prune = [
     LAYER_REPETITIONS[0],
     [tf.placeholder(tf.float32,
                     shape=[LAYER_SIZES[0],
-                           LAYER_SIZES[1]])]*LAYER_REPETITIONS[1],
-    [tf.placeholder(tf.float32, shape=[LAYER_SIZES[1], 10])]
+                           LAYER_SIZES[1]])]*LAYER_REPETITIONS[0],
+    [tf.placeholder(tf.float32, shape=[LAYER_SIZES[1], 10])] *
+    LAYER_REPETITIONS[1]
 ]
 
 first_layers_per_second_layer = LAYER_REPETITIONS[0] // LAYER_REPETITIONS[1]
@@ -105,26 +105,31 @@ h_layer.append(
 
 W.append(
     [weight_variable([LAYER_SIZES[0], LAYER_SIZES[1]])] *
-    LAYER_REPETITIONS[1]
+    LAYER_REPETITIONS[0]
 )
 b.append(
-    [bias_variable([LAYER_SIZES[1]])] * LAYER_REPETITIONS[1]
+    [bias_variable([LAYER_SIZES[1]])] * LAYER_REPETITIONS[0]
 )
 next_h_layer = []
 for i in range(LAYER_REPETITIONS[1]):
-    all_inputs = []
+    all_outputs = []
     for k in range(first_layers_per_second_layer):
         j = i * first_layers_per_second_layer + k
-        all_inputs.append(h_layer[0][j])
-    sum_input = tf.reduce_sum(all_inputs, axis=0)
-    next_h_layer.append(tf.nn.relu(
-        tf.matmul(sum_input, W[1][i] * prune[1][i]) + b[1][i]))
+        inp = h_layer[0][j]
+        all_outputs.append(
+            tf.nn.relu(tf.matmul(inp, W[1][j] * prune[1][j]) + b[1][j]))
+    next_h_layer.append(tf.reduce_sum(all_outputs, axis=0))
 h_layer.append(next_h_layer)
 
-W.append([weight_variable([LAYER_SIZES[1], 10])])
-b.append([bias_variable([10])])
-y = tf.matmul(tf.reduce_sum(h_layer[-1], axis=0),
-              W[2][0] * prune[2][0]) + b[2][0]
+
+W.append([weight_variable([LAYER_SIZES[1], 10])] * LAYER_REPETITIONS[1])
+b.append([bias_variable([10])] * LAYER_REPETITIONS[1])
+print(h_layer)
+print(W)
+print(b)
+y = tf.reduce_sum(
+    [tf.matmul(inp, W[-1][i] * prune[-1][i]) + b[-1][i]
+     for i, inp in enumerate(h_layer[-1])], axis=0)
 
 cross_entropy = tf.reduce_mean(
     tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
@@ -178,8 +183,8 @@ def evaluate_sample(sample_n):
     W_init = map_2d(W, evaluate)
 
     p = [[np.ones([784, LAYER_SIZES[0]])]*LAYER_REPETITIONS[0],
-         [np.ones([LAYER_SIZES[0], LAYER_SIZES[1]])]*LAYER_REPETITIONS[1],
-         [np.ones([LAYER_SIZES[1], 10])]]
+         [np.ones([LAYER_SIZES[0], LAYER_SIZES[1]])]*LAYER_REPETITIONS[0],
+         [np.ones([LAYER_SIZES[1], 10])] * LAYER_REPETITIONS[1]]
 
     base_accuracies, base_iterations = train(p)
 
