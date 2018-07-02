@@ -26,9 +26,10 @@ parser.add_argument("--resultdir", type=str)
 parser.add_argument("--samplestart", type=int, default=0)
 parser.add_argument("--samplesupremum", type=int, default=5)
 parser.add_argument('--trainingsteps', type=int, default=18000)
+parser.add_argument('--layerrepetitions', type=str, default='[1,1]')
 parser.add_argument('--layersizes', type=str, default='[300,100]')
 parser.add_argument('--remainingcounts', type=str,
-                    default='[((round(share*784*300),), (round(share*300*100),), (round(share*100*10),)) ' +
+                    default='[(round(share*784*300), round(share*300*100), round(share*100*10)) ' +
                     'for share in ((.8**2)**i for i in range(1, 11))]')
 # Results in [((150528,), (19200,), (640,)), ((96338,), (12288,), (410,)), ((61656,), (7864,), (262,)), ((39460,), (5033,), (168,)), ((25254,), (3221,), (107,)), ((16163,), (2062,), (69,)), ((10344,), (1319,), (44,)), ((6620,), (844,), (28,)), ((4237,), (540,), (18,)), ((2712,), (346,), (12,))]
 
@@ -41,7 +42,10 @@ RESULT_PATH_PREFIX = args.resultdir
 SAMPLE_START = args.samplestart
 SAMPLE_SUPREMUM = args.samplesupremum
 LAYER_SIZES = eval(args.layersizes)
-REMAINING_COUNTS = eval(args.remainingcounts)
+LAYER_REPETITIONS = eval(args.layerrepetitions)
+REMAINING_COUNTS = \
+    [((p1,)*LAYER_REPETITIONS[0], (p2,)*LAYER_REPETITIONS[0], (p3,)*LAYER_REPETITIONS[1])
+     for p1, p2, p3 in eval(args.remainingcounts)]
 LAYER_REPETITIONS = [len(remainings) for remainings in REMAINING_COUNTS[0]][1:]
 
 print('Results written to {}'.format(RESULT_PATH_PREFIX))
@@ -124,9 +128,6 @@ h_layer.append(next_h_layer)
 
 W.append([weight_variable([LAYER_SIZES[1], 10])] * LAYER_REPETITIONS[1])
 b.append([bias_variable([10])] * LAYER_REPETITIONS[1])
-print(h_layer)
-print(W)
-print(b)
 y = tf.reduce_sum(
     [tf.matmul(inp, W[-1][i] * prune[-1][i]) + b[-1][i]
      for i, inp in enumerate(h_layer[-1])], axis=0)
